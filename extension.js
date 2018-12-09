@@ -84,20 +84,39 @@ exports.activate = context => {
         const text = vscode.window.activeTextEditor.document.getText(selection);
         const textRegex = new RegExp(`^${text}[\:\(]`);
         if (resultsCache.has('JS')) {
-                const results = resultsCache.get('JS').filter(result => textRegex.test(result));
+            let results = resultsCache.get('JS').filter(result => textRegex.test(result));
+            results = results.map(res=>{
+                const parse = res.split(':');
+                return {
+                    name: parse[0].trim(),
+                    filename: parse[1].trim(),
+                    line: Number(parse[2].trim())
+                }
+            });
+            if (results.length > 1) {
+                const findInFilename = new RegExp(text, 'i');
+                results = results.sort((a, b) => {
+                    if (findInFilename.test(a.filename) && !findInFilename.test(b.filename)) {
+                        return -1;
+                    } else if (findInFilename.test(a.filename) && findInFilename.test(b.filename)) {
+                        return 0;
+                    } else {
+                        return 1;
+                    }
+                });
+            }
             if (results[0]) {
-                const filename = results[0].split(':')[1].trim();
-                const line = Number(results[0].split(':')[2].trim());
-                vscode.workspace.openTextDocument(filename)
+                const fileToOpen = results[0];
+                vscode.workspace.openTextDocument(fileToOpen.filename)
                 .then((doc) => {
                     vscode.window.showTextDocument(doc)
                     .then((editor) => {
                         const position = editor.selection.active;
-                        const newPosition = position.with(line, 0);
+                        const newPosition = position.with(fileToOpen.line, 0);
                         const newSelection = new vscode.Selection(newPosition, newPosition);
                         editor.selection = newSelection;
                         vscode.commands.executeCommand('revealLine', {
-                            lineNumber:line,
+                            lineNumber: fileToOpen.line,
                             at: 'center'
                         });
                     });
