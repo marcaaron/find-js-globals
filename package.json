@@ -3,7 +3,7 @@
     "displayName": "Find JS Globals",
     "publisher": "marcaaron",
     "description": "Finds global definitions in JavaScript projects without using modules",
-    "version": "0.0.1",
+    "version": "0.1.0",
     "engines": {
         "vscode": "^1.29.0"
     },
@@ -44,10 +44,12 @@
             }
         ],
         "menus": {
-            "commandPalette": [{
-                "command": "extension.resolveGlobal",
-                "when": "editorHasSelection"
-            }],
+            "commandPalette": [
+                {
+                    "command": "extension.resolveGlobal",
+                    "when": "editorHasSelection"
+                }
+            ],
             "editor/context": [
                 {
                     "command": "extension.attemptToResolve",
