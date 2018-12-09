@@ -1,0 +1,73 @@
+{
+    "name": "find-js-globals",
+    "displayName": "Find JS Globals",
+    "publisher": "marcaaron",
+    "description": "Finds global definitions in JavaScript projects without using modules",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.29.0"
+    },
+    "categories": [
+        "Other"
+    ],
+    "activationEvents": [
+        "onCommand:extension.findGlobal",
+        "onCommand:extension.resolveGlobal",
+        "onCommand:extension.refreshCache",
+        "onCommand:extension.attemptToResolve"
+    ],
+    "main": "./extension",
+    "contributes": {
+        "commands": [
+            {
+                "command": "extension.findGlobal",
+                "title": "Find JS Globals: Find"
+            },
+            {
+                "command": "extension.refreshCache",
+                "title": "Find JS Globals: Refresh"
+            },
+            {
+                "command": "extension.resolveGlobal",
+                "title": "Find JS Globals: Resolve"
+            },
+            {
+                "command": "extension.attemptToResolve",
+                "title": "Attempt to Resolve Global"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "extension.attemptToResolve",
+                "key": "shift+ctrl+r",
+                "mac": "shift+cmd+r"
+            }
+        ],
+        "menus": {
+            "commandPalette": [{
+                "command": "extension.resolveGlobal",
+                "when": "editorHasSelection"
+            }],
+            "editor/context": [
+                {
+                    "command": "extension.attemptToResolve",
+                    "group": "navigation"
+                }
+            ]
+        }
+    },
+    "scripts": {
+        "postinstall": "node ./node_modules/vscode/bin/install",
+        "test": "node ./node_modules/vscode/bin/test"
+    },
+    "devDependencies": {
+        "typescript": "^3.1.4",
+        "vscode": "^1.1.25",
+        "eslint": "^4.11.0",
+        "@types/node": "^8.10.25",
+        "@types/mocha": "^2.2.42"
+    },
+    "dependencies": {
+        "vscode-cache": "^0.3.0"
+    }
+}
