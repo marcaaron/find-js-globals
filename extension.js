@@ -96,6 +96,10 @@ exports.activate = context => {
                         const newPosition = position.with(line, 0);
                         const newSelection = new vscode.Selection(newPosition, newPosition);
                         editor.selection = newSelection;
+                        vscode.commands.executeCommand('revealLine', {
+                            lineNumber:line,
+                            at: 'center'
+                        });
                     });
                 });
             } else {
@@ -136,6 +140,10 @@ exports.activate = context => {
                                 const newPosition = position.with(line, 0);
                                 const newSelection = new vscode.Selection(newPosition, newPosition);
                                 editor.selection = newSelection;
+                                vscode.commands.executeCommand('revealLine', {
+                                    lineNumber:line,
+                                    at: 'center'
+                                });
                             });
                         });        
                     } else {
@@ -166,6 +174,10 @@ exports.activate = context => {
                         const newPosition = position.with(line, 0);
                         const newSelection = new vscode.Selection(newPosition, newPosition);
                         editor.selection = newSelection;
+                        vscode.commands.executeCommand('revealLine', {
+                            lineNumber:line,
+                            at: 'center'
+                        });
                     });
                 });        
             });
@@ -205,6 +217,10 @@ exports.activate = context => {
                                 const newPosition = position.with(line, 0);
                                 const newSelection = new vscode.Selection(newPosition, newPosition);
                                 editor.selection = newSelection;
+                                vscode.commands.executeCommand('revealLine', {
+                                    lineNumber:line,
+                                    at: 'center'
+                                });
                             });
                         });        
                     }); 
@@ -249,6 +265,10 @@ exports.activate = context => {
                                 const newPosition = position.with(line, 0);
                                 const newSelection = new vscode.Selection(newPosition, newPosition);
                                 editor.selection = newSelection;
+                                vscode.commands.executeCommand('revealLine', {
+                                    lineNumber:line,
+                                    at: 'center'
+                                });
                             });
                         });                    
                     });
@@ -271,6 +291,10 @@ exports.activate = context => {
                         const newPosition = position.with(line, 0);
                         const newSelection = new vscode.Selection(newPosition, newPosition);
                         editor.selection = newSelection;
+                        vscode.commands.executeCommand('revealLine', {
+                            lineNumber:line,
+                            at: 'center'
+                        });
                     });
                 });                    
             });        
