@@ -55,7 +55,7 @@ exports.activate = context => {
     const refreshCache = vscode.commands.registerCommand('extension.refreshCache', function() {
         vscode.window.showInformationMessage('Flushing JS Globals cache and building...');
         resultsCache.flush();
-        walk('./', (err, results) => {
+        walk(vscode.workspace.rootPath, (err, results) => {
             const exludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
             const formatted = exludes.map(filename => {
                 return fs.readFileAsync(filename);    
@@ -103,7 +103,7 @@ exports.activate = context => {
             }
         } else {
             vscode.window.showInformationMessage('Re-building JS Globals Cache...');
-            walk('./', (err, results) => {
+            walk(vscode.workspace.rootPath, (err, results) => {
                 const exludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
                 const formatted = exludes.map(filename => {
                     return fs.readFileAsync(filename);    
@@ -170,7 +170,7 @@ exports.activate = context => {
                 });        
             });
         } else {
-            walk('./', (err, results) => {
+            walk(vscode.workspace.rootPath, (err, results) => {
                 const exludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
                 const formatted = exludes.map(filename => {
                     return fs.readFileAsync(filename);    
@@ -215,7 +215,7 @@ exports.activate = context => {
 
     const findGlobal = vscode.commands.registerCommand('extension.findGlobal', async function () {
         if (!resultsCache.has('JS')) {
-            walk('./', (err, results) => {
+            walk(vscode.workspace.rootPath, (err, results) => {
                 const exludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
                 const formatted = exludes.map(filename => {
                     return fs.readFileAsync(filename);    
