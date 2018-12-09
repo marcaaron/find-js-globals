@@ -84,10 +84,10 @@ exports.activate = context => {
         const text = vscode.window.activeTextEditor.document.getText(selection);
         const textRegex = new RegExp(`^${text}[\:\(]`);
         if (resultsCache.has('JS')) {
-            const results = resultsCache.get('JS').filter(result => textRegex.test(result));
-            const filename = results[0].split(':')[1].trim();
-            const line = Number(results[0].split(':')[2].trim());
+                const results = resultsCache.get('JS').filter(result => textRegex.test(result));
             if (results[0]) {
+                const filename = results[0].split(':')[1].trim();
+                const line = Number(results[0].split(':')[2].trim());
                 vscode.workspace.openTextDocument(filename)
                 .then((doc) => {
                     vscode.window.showTextDocument(doc)
