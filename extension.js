@@ -43,12 +43,13 @@ const walk = function(dir, done) {
     })
 }
 
-exports.activate = context => {
-    const config = vscode.workspace.getConfiguration();
-    const ignoreNodeModules = config.get('findJSGlobals.ignoreNodeModules') || true;
-    const ignoreGit = config.get('findJSGlobals.ignoreGit') || true;
-    const ignoreBuildFiles = config.get('findJSGlobals.ignoreBuildFiles') || true;
-    const customExcludes = config.get('findJSGlobals.ignorePatterns') || [];
+exports.activate = context => {    
+    const settings = {
+        ignoreNodeModules: vscode.workspace.getConfiguration().get('findJSGlobals.ignoreNodeModules') || true,
+        ignoreGit: vscode.workspace.getConfiguration().get('findJSGlobals.ignoreGit') || true,
+        ignoreBuildFiles: vscode.workspace.getConfiguration().get('findJSGlobals.ignoreBuildFiles') || true,
+        customExcludes: vscode.workspace.getConfiguration().get('findJSGlobals.ignorePatterns') || []
+    };
 
     const filters = {
         isNotNodeModules: (name) => !/node_modules/.test(name),
@@ -59,52 +60,86 @@ exports.activate = context => {
 
     const goodGlobal = /^[a-zA-Z$\_][^():~\-=@#%^&*+]+/;
     const regex = new RegExp(/(class|window\.|var|const|\(?\s?function)\s?([^\s]\.?[^\s]+)\s?(=|\((.+)?\)|\{)/, 'g');
+
+    function applyFilters(results) {
+        let excludes = results.filter(filters.isJS);
+        if (settings.ignoreNodeModules) {
+            excludes = excludes.filter(filters.isNotNodeModules);
+        }
+        if (settings.ignoreGit) {
+            excludes = excludes.filter(filters.isNotGit);
+        }
+        if (settings.ignoreBuildFiles) {
+            excludes = excludes.filter(filters.isNotBuildFile);
+        }
+        return excludes;
+    }
+
+    function processResults(items) {
+        const notNullItems = items.filter(item => item);
+        const results = [];
+        notNullItems.forEach(item => {
+            item.text.toString().split(/\n/).forEach((line, index)=>{
+                line.replace(regex, (x, y, foundGlobal) => {
+                    if (foundGlobal) {
+                        if (settings.customExcludes.length && settings.customExcludes.some(({pattern, flags}) => {
+                            const regexExclude = new RegExp(pattern, flags);
+                            return regexExclude.test(foundGlobal);
+                        })) {
+                            // Do nothing this global should be ignored
+                        } else {
+                            if (goodGlobal.test(foundGlobal)) {
+                                results.push(`${foundGlobal}: ${item.filename}: ${index}`)
+                            }
+                        }
+                    }    
+                });                        
+            })
+        });
+        return results;
+    }
+
+    function parseResults(res) {
+        const parse = res.split(':');
+        return {
+            name: parse[0].trim(),
+            filename: parse[1].trim(),
+            line: Number(parse[2].trim())
+        }
+    }
+
+    function goToLine(filename, line) {
+        vscode.workspace.openTextDocument(filename)
+        .then((doc) => {
+            vscode.window.showTextDocument(doc)
+            .then((editor) => {
+                const position = editor.selection.active;
+                const newPosition = position.with(line, 0);
+                const newSelection = new vscode.Selection(newPosition, newPosition);
+                editor.selection = newSelection;
+                vscode.commands.executeCommand('revealLine', {
+                    lineNumber: line,
+                    at: 'center'
+                });
+            });
+        });
+    }
+
+    // Setup Cache
     let resultsCache = new Cache(context);
 
     const refreshCache = vscode.commands.registerCommand('extension.refreshCache', function() {
         vscode.window.showInformationMessage('Flushing JS Globals cache and re-building...');
         resultsCache.flush();
         walk(vscode.workspace.rootPath, (err, results) => {
-            let excludes = results.filter(filters.isJS);
-
-            if (ignoreNodeModules) {
-                excludes = excludes.filter(filters.isNotNodeModules);
-            }
-
-            if (ignoreGit) {
-                excludes = excludes.filter(filters.isNotGit);
-            }
-
-            if (ignoreBuildFiles) {
-                excludes = excludes.filter(filters.isNotBuildFile);
-            }
-
+            const excludes = applyFilters(results);
             const formatted = excludes.map(filename => {
                 return fs.readFileAsync(filename);    
             });
             
             Promise.all(formatted)
             .then(items => {
-                const notNullItems = items.filter(item => item);
-                const results = [];
-                notNullItems.forEach(item => {
-                    item.text.toString().split(/\n/).forEach((line, index)=>{
-                        line.replace(regex, (x, y, foundGlobal) => {
-                            if (foundGlobal) {
-                                if (customExcludes.length && customExcludes.some(({pattern, flags}) => {
-                                    const regexExclude = new RegExp(pattern, flags);
-                                    return regexExclude.test(foundGlobal);
-                                })) {
-                                    // Do nothing this global should be ignored
-                                } else {
-                                    if (goodGlobal.test(foundGlobal)) {
-                                        results.push(`${foundGlobal}: ${item.filename}: ${index}`)
-                                    }
-                                }
-                            }    
-                        });                        
-                    })
-                });
+                const results = processResults(items);
                 resultsCache.put('JS', results, 21600);
                 vscode.window.showInformationMessage('Find JS Globals cache refreshed!');
             });
@@ -117,14 +152,7 @@ exports.activate = context => {
         const textRegex = new RegExp(`^${text}[\:\(]`);
         if (resultsCache.has('JS')) {
             let results = resultsCache.get('JS').filter(result => textRegex.test(result));
-            results = results.map(res=>{
-                const parse = res.split(':');
-                return {
-                    name: parse[0].trim(),
-                    filename: parse[1].trim(),
-                    line: Number(parse[2].trim())
-                }
-            });
+            results = results.map(parseResults);
             if (results.length > 1) {
                 const findInFilename = new RegExp(text, 'i');
                 results = results.sort((a, b) => {
@@ -138,66 +166,21 @@ exports.activate = context => {
                 });
             }
             if (results[0]) {
-                const fileToOpen = results[0];
-                vscode.workspace.openTextDocument(fileToOpen.filename)
-                .then((doc) => {
-                    vscode.window.showTextDocument(doc)
-                    .then((editor) => {
-                        const position = editor.selection.active;
-                        const newPosition = position.with(fileToOpen.line, 0);
-                        const newSelection = new vscode.Selection(newPosition, newPosition);
-                        editor.selection = newSelection;
-                        vscode.commands.executeCommand('revealLine', {
-                            lineNumber: fileToOpen.line,
-                            at: 'center'
-                        });
-                    });
-                });
+                const fileToOpen = results[0]
+                goToLine(fileToOpen.filename, fileToOpen.line)
             } else {
                 vscode.window.showInformationMessage('Could not resolve global try command palette!');
             }
         } else {
             vscode.window.showInformationMessage('Re-building JS Globals Cache...');
             walk(vscode.workspace.rootPath, (err, results) => {
-                let excludes = results.filter(filters.isJS);
-
-                if (ignoreNodeModules) {
-                    excludes = excludes.filter(filters.isNotNodeModules);
-                }
-    
-                if (ignoreGit) {
-                    excludes = excludes.filter(filters.isNotGit);
-                }
-    
-                if (ignoreBuildFiles) {
-                    excludes = excludes.filter(filters.isNotBuildFile);
-                }
-
+                const excludes = applyFilters(results);
                 const formatted = excludes.map(filename => {
                     return fs.readFileAsync(filename);    
                 });
                 Promise.all(formatted)
                 .then(items => {
-                    const notNullItems = items.filter(item => item);
-                    const results = [];
-                    notNullItems.forEach(item => {
-                        item.text.toString().split(/\n/).forEach((line, index)=>{
-                            line.replace(regex, (x, y, foundGlobal) => {
-                                if (foundGlobal) {
-                                    if (customExcludes.length && customExcludes.some(({pattern, flags}) => {
-                                        const regexExclude = new RegExp(pattern, flags);
-                                        return regexExclude.test(foundGlobal);
-                                    })) {
-                                        // Do nothing this global should be ignored
-                                    } else {
-                                        if (goodGlobal.test(foundGlobal)) {
-                                            results.push(`${foundGlobal}: ${item.filename}: ${index}`)
-                                        }
-                                    }
-                                }    
-                            });                        
-                        })
-                    });
+                    const results = processResults(items);
                     resultsCache.put('JS', results, 21600);
                     vscode.window.showInformationMessage('Find JS Globals cache refreshed!');
                     // Do stuff with results
@@ -205,20 +188,7 @@ exports.activate = context => {
                     const filename = filteredResults[0].split(':')[1].trim();
                     const line = Number(filteredResults[0].split(':')[2].trim());        
                     if (filteredResults[0]) {
-                        vscode.workspace.openTextDocument(filename)
-                        .then((doc) => {
-                            vscode.window.showTextDocument(doc)
-                            .then((editor) => {
-                                const position = editor.selection.active;
-                                const newPosition = position.with(line, 0);
-                                const newSelection = new vscode.Selection(newPosition, newPosition);
-                                editor.selection = newSelection;
-                                vscode.commands.executeCommand('revealLine', {
-                                    lineNumber:line,
-                                    at: 'center'
-                                });
-                            });
-                        });        
+                        goToLine(filename, line);
                     } else {
                         vscode.window.showInformationMessage('Could not resolve global try command palette!');
                     }    
@@ -238,62 +208,18 @@ exports.activate = context => {
             })
             .then(selected => {
                 const filename = selected.split(':')[1].trim();
-                const line = Number(selected.split(':')[2].trim());            
-                vscode.workspace.openTextDocument(filename)
-                .then((doc) => {
-                    vscode.window.showTextDocument(doc)
-                    .then((editor) => {
-                        const position = editor.selection.active;
-                        const newPosition = position.with(line, 0);
-                        const newSelection = new vscode.Selection(newPosition, newPosition);
-                        editor.selection = newSelection;
-                        vscode.commands.executeCommand('revealLine', {
-                            lineNumber:line,
-                            at: 'center'
-                        });
-                    });
-                });        
+                const line = Number(selected.split(':')[2].trim());
+                goToLine(filename, line)
             });
         } else {
             walk(vscode.workspace.rootPath, (err, results) => {
-                let excludes = results.filter(filters.isJS);
-
-                if (ignoreNodeModules) {
-                    excludes = excludes.filter(filters.isNotNodeModules);
-                }
-
-                if (ignoreGit) {
-                    excludes = excludes.filter(filters.isNotGit);
-                }
-
-                if (ignoreBuildFiles) {
-                    excludes = excludes.filter(filters.isNotBuildFile);
-                }    
+                const excludes = applyFilters(results);  
                 const formatted = excludes.map(filename => {
                     return fs.readFileAsync(filename);    
                 });
                 Promise.all(formatted)
                 .then(items => {
-                    const notNullItems = items.filter(item => item);
-                    const results = [];
-                    notNullItems.forEach(item => {
-                        item.text.toString().split(/\n/).forEach((line, index)=>{
-                            line.replace(regex, (x, y, foundGlobal) => {
-                                if (foundGlobal) {
-                                    if (customExcludes.length && customExcludes.some(({pattern, flags}) => {
-                                        const regexExclude = new RegExp(pattern, flags);
-                                        return regexExclude.test(foundGlobal);
-                                    })) {
-                                        // Do nothing this global should be ignored
-                                    } else {
-                                        if (goodGlobal.test(foundGlobal)) {
-                                            results.push(`${foundGlobal}: ${item.filename}: ${index}`)
-                                        }
-                                    }
-                                }    
-                            });                        
-                        })
-                    });
+                    const results = processResults(items);
                     resultsCache.put('JS', results, 21600);
                     // Do stuff with results
                     const filteredResults = resultsCache.get('JS').filter(result => (new RegExp(text)).test(result));
@@ -303,20 +229,7 @@ exports.activate = context => {
                     .then(selected => {
                         const filename = selected.split(':')[1].trim();
                         const line = Number(selected.split(':')[2].trim());            
-                        vscode.workspace.openTextDocument(filename)
-                        .then((doc) => {
-                            vscode.window.showTextDocument(doc)
-                            .then((editor) => {
-                                const position = editor.selection.active;
-                                const newPosition = position.with(line, 0);
-                                const newSelection = new vscode.Selection(newPosition, newPosition);
-                                editor.selection = newSelection;
-                                vscode.commands.executeCommand('revealLine', {
-                                    lineNumber:line,
-                                    at: 'center'
-                                });
-                            });
-                        });        
+                        goToLine(filename, line)     
                     }); 
                 });
             });
@@ -326,44 +239,13 @@ exports.activate = context => {
     const findGlobal = vscode.commands.registerCommand('extension.findGlobal', async function () {
         if (!resultsCache.has('JS')) {
             walk(vscode.workspace.rootPath, (err, results) => {
-                let excludes = results.filter(filters.isJS);
-
-                if (ignoreNodeModules) {
-                    excludes = excludes.filter(filters.isNotNodeModules);
-                }
-    
-                if (ignoreGit) {
-                    excludes = excludes.filter(filters.isNotGit);
-                }
-    
-                if (ignoreBuildFiles) {
-                    excludes = excludes.filter(filters.isNotBuildFile);
-                }
+                const excludes = applyFilters(results);
                 const formatted = excludes.map(filename => {
                     return fs.readFileAsync(filename);    
                 });
                 Promise.all(formatted)
                 .then(items => {
-                    const notNullItems = items.filter(item => item);
-                    const results = [];
-                    notNullItems.forEach(item => {
-                        item.text.toString().split(/\n/).forEach((line, index)=>{
-                            line.replace(regex, (x, y, foundGlobal) => {
-                                if (foundGlobal) {
-                                    if (customExcludes.length && customExcludes.some(({pattern, flags}) => {
-                                        const regexExclude = new RegExp(pattern, flags);
-                                        return regexExclude.test(foundGlobal);
-                                    })) {
-                                        // Do nothing this global should be ignored
-                                    } else {
-                                        if (goodGlobal.test(foundGlobal)) {
-                                            results.push(`${foundGlobal}: ${item.filename}: ${index}`)
-                                        }
-                                    }
-                                }    
-                            });                        
-                        })
-                    });
+                    const results = processResults(items);
                     resultsCache.put('JS', results, 21600);
                     // Do stuff with results
                     vscode.window.showQuickPick(results, {
@@ -372,20 +254,7 @@ exports.activate = context => {
                     .then(selected => {
                         const filename = selected.split(':')[1].trim();
                         const line = Number(selected.split(':')[2].trim());            
-                        vscode.workspace.openTextDocument(filename)
-                        .then((doc) => {
-                            vscode.window.showTextDocument(doc)
-                            .then((editor) => {
-                                const position = editor.selection.active;
-                                const newPosition = position.with(line, 0);
-                                const newSelection = new vscode.Selection(newPosition, newPosition);
-                                editor.selection = newSelection;
-                                vscode.commands.executeCommand('revealLine', {
-                                    lineNumber:line,
-                                    at: 'center'
-                                });
-                            });
-                        });                    
+                        goToLine(filename, line);
                     });
                 });
             });
@@ -398,20 +267,7 @@ exports.activate = context => {
             .then(selected => {
                 const filename = selected.split(':')[1].trim();
                 const line = Number(selected.split(':')[2].trim());            
-                vscode.workspace.openTextDocument(filename)
-                .then((doc) => {
-                    vscode.window.showTextDocument(doc)
-                    .then((editor) => {
-                        const position = editor.selection.active;
-                        const newPosition = position.with(line, 0);
-                        const newSelection = new vscode.Selection(newPosition, newPosition);
-                        editor.selection = newSelection;
-                        vscode.commands.executeCommand('revealLine', {
-                            lineNumber:line,
-                            at: 'center'
-                        });
-                    });
-                });                    
+                goToLine(filename, line)             
             });        
         }
     });
