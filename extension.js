@@ -4,7 +4,6 @@ const vscode = require('vscode');
 const Cache = require('vscode-cache');
 const fs = require('fs');
 const path = require('path');
-const regex = new RegExp(/(class|window\.|var|const|\(?\s?function)\s?([^\s]\.?[^\s]+)\s?(=|\((.+)?\)|\{)/, 'g');
 
 fs.readFileAsync = function (filename) {
     return new Promise(function (resolve, reject) {
@@ -50,14 +49,17 @@ const isNotBuildFile = name => !/\/build\//.test(name);
 const isNotGit= name => !/\.git/.test(name);
 
 exports.activate = context => {
+    const goodGlobal = /^[a-zA-Z$\_][^():~\-=@#%^&*+]+/;
+    const customExcludes = vscode.workspace.getConfiguration().get('findJSGlobals.ignorePatterns') || [];
+    const regex = new RegExp(/(class|window\.|var|const|\(?\s?function)\s?([^\s]\.?[^\s]+)\s?(=|\((.+)?\)|\{)/, 'g');
     let resultsCache = new Cache(context);
 
     const refreshCache = vscode.commands.registerCommand('extension.refreshCache', function() {
-        vscode.window.showInformationMessage('Flushing JS Globals cache and building...');
+        vscode.window.showInformationMessage('Flushing JS Globals cache and re-building...');
         resultsCache.flush();
         walk(vscode.workspace.rootPath, (err, results) => {
-            const exludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
-            const formatted = exludes.map(filename => {
+            const excludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
+            const formatted = excludes.map(filename => {
                 return fs.readFileAsync(filename);    
             });
             Promise.all(formatted)
@@ -68,7 +70,16 @@ exports.activate = context => {
                     item.text.toString().split(/\n/).forEach((line, index)=>{
                         line.replace(regex, (x, y, foundGlobal) => {
                             if (foundGlobal) {
-                                results.push(`${foundGlobal}: ${item.filename}: ${index}`)
+                                if (customExcludes.length && customExcludes.some(({pattern, flags}) => {
+                                    const regexExclude = new RegExp(pattern, flags);
+                                    return regexExclude.test(foundGlobal);
+                                })) {
+                                    // Do nothing this global should be ignored
+                                } else {
+                                    if (goodGlobal.test(foundGlobal)) {
+                                        results.push(`${foundGlobal}: ${item.filename}: ${index}`)
+                                    }
+                                }
                             }    
                         });                        
                     })
@@ -127,8 +138,9 @@ exports.activate = context => {
         } else {
             vscode.window.showInformationMessage('Re-building JS Globals Cache...');
             walk(vscode.workspace.rootPath, (err, results) => {
-                const exludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
-                const formatted = exludes.map(filename => {
+                const excludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
+    
+                const formatted = excludes.map(filename => {
                     return fs.readFileAsync(filename);    
                 });
                 Promise.all(formatted)
@@ -139,7 +151,16 @@ exports.activate = context => {
                         item.text.toString().split(/\n/).forEach((line, index)=>{
                             line.replace(regex, (x, y, foundGlobal) => {
                                 if (foundGlobal) {
-                                    results.push(`${foundGlobal}: ${item.filename}: ${index}`)
+                                    if (customExcludes.length && customExcludes.some(({pattern, flags}) => {
+                                        const regexExclude = new RegExp(pattern, flags);
+                                        return regexExclude.test(foundGlobal);
+                                    })) {
+                                        // Do nothing this global should be ignored
+                                    } else {
+                                        if (goodGlobal.test(foundGlobal)) {
+                                            results.push(`${foundGlobal}: ${item.filename}: ${index}`)
+                                        }
+                                    }
                                 }    
                             });                        
                         })
@@ -202,8 +223,9 @@ exports.activate = context => {
             });
         } else {
             walk(vscode.workspace.rootPath, (err, results) => {
-                const exludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
-                const formatted = exludes.map(filename => {
+                const excludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
+    
+                const formatted = excludes.map(filename => {
                     return fs.readFileAsync(filename);    
                 });
                 Promise.all(formatted)
@@ -214,7 +236,16 @@ exports.activate = context => {
                         item.text.toString().split(/\n/).forEach((line, index)=>{
                             line.replace(regex, (x, y, foundGlobal) => {
                                 if (foundGlobal) {
-                                    results.push(`${foundGlobal}: ${item.filename}: ${index}`)
+                                    if (customExcludes.length && customExcludes.some(({pattern, flags}) => {
+                                        const regexExclude = new RegExp(pattern, flags);
+                                        return regexExclude.test(foundGlobal);
+                                    })) {
+                                        // Do nothing this global should be ignored
+                                    } else {
+                                        if (goodGlobal.test(foundGlobal)) {
+                                            results.push(`${foundGlobal}: ${item.filename}: ${index}`)
+                                        }
+                                    }
                                 }    
                             });                        
                         })
@@ -251,8 +282,8 @@ exports.activate = context => {
     const findGlobal = vscode.commands.registerCommand('extension.findGlobal', async function () {
         if (!resultsCache.has('JS')) {
             walk(vscode.workspace.rootPath, (err, results) => {
-                const exludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
-                const formatted = exludes.map(filename => {
+                const excludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
+                const formatted = excludes.map(filename => {
                     return fs.readFileAsync(filename);    
                 });
                 Promise.all(formatted)
@@ -263,7 +294,16 @@ exports.activate = context => {
                         item.text.toString().split(/\n/).forEach((line, index)=>{
                             line.replace(regex, (x, y, foundGlobal) => {
                                 if (foundGlobal) {
-                                    results.push(`${foundGlobal}: ${item.filename}: ${index}`)
+                                    if (customExcludes.length && customExcludes.some(({pattern, flags}) => {
+                                        const regexExclude = new RegExp(pattern, flags);
+                                        return regexExclude.test(foundGlobal);
+                                    })) {
+                                        // Do nothing this global should be ignored
+                                    } else {
+                                        if (goodGlobal.test(foundGlobal)) {
+                                            results.push(`${foundGlobal}: ${item.filename}: ${index}`)
+                                        }
+                                    }
                                 }    
                             });                        
                         })
