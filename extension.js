@@ -183,7 +183,6 @@ exports.activate = context => {
                     const results = processResults(items);
                     resultsCache.put('JS', results, 21600);
                     vscode.window.showInformationMessage('Find JS Globals cache refreshed!');
-                    // Do stuff with results
                     const filteredResults = resultsCache.get('JS').filter(result => textRegex.test(result));
                     const filename = filteredResults[0].split(':')[1].trim();
                     const line = Number(filteredResults[0].split(':')[2].trim());        
@@ -221,7 +220,6 @@ exports.activate = context => {
                 .then(items => {
                     const results = processResults(items);
                     resultsCache.put('JS', results, 21600);
-                    // Do stuff with results
                     const filteredResults = resultsCache.get('JS').filter(result => (new RegExp(text)).test(result));
                     vscode.window.showQuickPick(filteredResults, {
                         placeHolder: ''
@@ -247,7 +245,6 @@ exports.activate = context => {
                 .then(items => {
                     const results = processResults(items);
                     resultsCache.put('JS', results, 21600);
-                    // Do stuff with results
                     vscode.window.showQuickPick(results, {
                         placeHolder: ''
                     })
@@ -260,7 +257,6 @@ exports.activate = context => {
             });
         } else {
             const results = resultsCache.get('JS');
-            // Do stuff with results
             vscode.window.showQuickPick(results, {
                 placeHolder: ''
             })
