@@ -59,7 +59,7 @@ exports.activate = context => {
     };
 
     const goodGlobal = /^[a-zA-Z$\_][^():~\-=@#%^&*+]+/;
-    const regex = new RegExp(/(class|window\.|var|const|\(?\s?function)\s?([^\s]\.?[^\s]+)\s?(=|\((.+)?\)|\{)/, 'g');
+    const regex = new RegExp(/(class|window\.|var|let|const|\(?\s?function)\s?([^\s]\.?[^\s]+)\s?(=|\((.+)?\)|\{)/, 'g');
 
     function applyFilters(results) {
         let excludes = results.filter(filters.isJS);
@@ -82,7 +82,7 @@ exports.activate = context => {
             item.text.toString().split(/\n/).forEach((line, index)=>{
                 line.replace(regex, (x, y, foundGlobal) => {
                     if (foundGlobal) {
-                        if (settings.customExcludes.length && settings.customExcludes.some(({pattern, flags}) => {
+                        if (settings.customExcludes.length && settings.customExcludes.some(({pattern, flags=""}) => {
                             const regexExclude = new RegExp(pattern, flags);
                             return regexExclude.test(foundGlobal);
                         })) {

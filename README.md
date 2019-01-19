@@ -4,6 +4,15 @@
 
 Let's you quickly find and resolve global variables across your project in vs-code. Especially useful if you're not working with ES6 modules, but would still like a way to quickly jump to where an object, class or function got declared globally.
 
+This extension walks your entire workspace folder and searching through every file hunting for globals. The larger the workspace the less performant it will be. At the moment it will resolve the following types of globally declared named variables:
+
+- var
+- let
+- const
+- class
+- window.*
+- function
+
 **There are a few ways to resolve a global and jump to wherever it was declared:**
 
 1. To access the first "potential" source for the global you can try highlighting the text right clicking and then selecting `Attempt to Resolve Global` from the right-click menu. This isn't guaranteed to work, but you'll get a notification if it failed. If it doesn't work try the following steps instead. You can also use the keybinding `shift+cmd+r` for quicker access (my preference).
@@ -20,7 +29,17 @@ The cache will stay good for 6 hrs after that you'll need to rebuild it again. B
 
 ## Extension Settings
 
+All files found in either `node_modules`, `build`, or `.git` directories are omitted by default to search for globals within these directories add the following to your `settings.json` and set to `false`
+
+`findJSGlobals.ignoreNodeModules` - bool - *default true*
+
+`findJSGlobals.ignoreBuildFiles` - bool - *default true*
+
+`findJSGlobals.ignoreGit` - bool - *default true*
+
 To exclude certain globals from appearing you can now add an ignore pattern flag. This will block any globals matching a certain regex pattern from showing up in your cache.
+
+`findJSGlobals.ignorePatterns` - array - *default [ ]*
 
 e.g. to your `settings.json` file add:
 ```
@@ -32,8 +51,4 @@ e.g. to your `settings.json` file add:
 ]
 ```
 
-This will exclude any globals with underscores from your list of globals. This uses a `new RegExp()` constructor pattern so any rules that can be applied inside those will work here. You can add as many ignore patterns as you like, but the more you have may impact performance.
-
-## Known Issues
-
-This extension indexes and caches file names and text within documents. Because of this `node_modules` and `git` directories are excluded by default for now. The code still needs to be improved a lot as there's tons of duplication.
+This will exclude any globals with underscores from your list of globals. This uses a `new RegExp()` constructor pattern so any rules that can be applied inside those will work here. You can add as many ignore patterns as you like, but the more you have may impact performance slightly. It will be necessary to reload the workspace and refresh the cache to see your changes reflected.
