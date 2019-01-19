@@ -37,9 +37,3 @@ This will exclude any globals with underscores from your list of globals. This u
 ## Known Issues
 
 This extension indexes and caches file names and text within documents. Because of this `node_modules` and `git` directories are excluded by default for now. The code still needs to be improved a lot as there's tons of duplication.
-
-## Change Log
-
-01-19-2019 
-- Added settings for excluding certain naming patterns for global results. 
-- Added extra filtering for badly formatted globals (e.g. things that don't start with $, _, or alpha and include illegal chars like `:` or parens.
