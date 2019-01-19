@@ -43,14 +43,21 @@ const walk = function(dir, done) {
     })
 }
 
-const isNotNodeModules= name => !/node_modules/.test(name);
-const isJS = name => /\.(js|jsx)/.test(name);
-const isNotBuildFile = name => !/\/build\//.test(name);
-const isNotGit= name => !/\.git/.test(name);
-
 exports.activate = context => {
+    const config = vscode.workspace.getConfiguration();
+    const ignoreNodeModules = config.get('findJSGlobals.ignoreNodeModules') || true;
+    const ignoreGit = config.get('findJSGlobals.ignoreGit') || true;
+    const ignoreBuildFiles = config.get('findJSGlobals.ignoreBuildFiles') || true;
+    const customExcludes = config.get('findJSGlobals.ignorePatterns') || [];
+
+    const filters = {
+        isNotNodeModules: (name) => !/node_modules/.test(name),
+        isJS: name => /\.(js|jsx)/.test(name),
+        isNotBuildFile: name => !/\/build\//.test(name),
+        isNotGit: name => !/\.git/.test(name)
+    };
+
     const goodGlobal = /^[a-zA-Z$\_][^():~\-=@#%^&*+]+/;
-    const customExcludes = vscode.workspace.getConfiguration().get('findJSGlobals.ignorePatterns') || [];
     const regex = new RegExp(/(class|window\.|var|const|\(?\s?function)\s?([^\s]\.?[^\s]+)\s?(=|\((.+)?\)|\{)/, 'g');
     let resultsCache = new Cache(context);
 
@@ -58,10 +65,24 @@ exports.activate = context => {
         vscode.window.showInformationMessage('Flushing JS Globals cache and re-building...');
         resultsCache.flush();
         walk(vscode.workspace.rootPath, (err, results) => {
-            const excludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
+            let excludes = results.filter(filters.isJS);
+
+            if (ignoreNodeModules) {
+                excludes = excludes.filter(filters.isNotNodeModules);
+            }
+
+            if (ignoreGit) {
+                excludes = excludes.filter(filters.isNotGit);
+            }
+
+            if (ignoreBuildFiles) {
+                excludes = excludes.filter(filters.isNotBuildFile);
+            }
+
             const formatted = excludes.map(filename => {
                 return fs.readFileAsync(filename);    
             });
+            
             Promise.all(formatted)
             .then(items => {
                 const notNullItems = items.filter(item => item);
@@ -138,8 +159,20 @@ exports.activate = context => {
         } else {
             vscode.window.showInformationMessage('Re-building JS Globals Cache...');
             walk(vscode.workspace.rootPath, (err, results) => {
-                const excludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
+                let excludes = results.filter(filters.isJS);
+
+                if (ignoreNodeModules) {
+                    excludes = excludes.filter(filters.isNotNodeModules);
+                }
     
+                if (ignoreGit) {
+                    excludes = excludes.filter(filters.isNotGit);
+                }
+    
+                if (ignoreBuildFiles) {
+                    excludes = excludes.filter(filters.isNotBuildFile);
+                }
+
                 const formatted = excludes.map(filename => {
                     return fs.readFileAsync(filename);    
                 });
@@ -223,8 +256,19 @@ exports.activate = context => {
             });
         } else {
             walk(vscode.workspace.rootPath, (err, results) => {
-                const excludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
-    
+                let excludes = results.filter(filters.isJS);
+
+                if (ignoreNodeModules) {
+                    excludes = excludes.filter(filters.isNotNodeModules);
+                }
+
+                if (ignoreGit) {
+                    excludes = excludes.filter(filters.isNotGit);
+                }
+
+                if (ignoreBuildFiles) {
+                    excludes = excludes.filter(filters.isNotBuildFile);
+                }    
                 const formatted = excludes.map(filename => {
                     return fs.readFileAsync(filename);    
                 });
@@ -282,7 +326,19 @@ exports.activate = context => {
     const findGlobal = vscode.commands.registerCommand('extension.findGlobal', async function () {
         if (!resultsCache.has('JS')) {
             walk(vscode.workspace.rootPath, (err, results) => {
-                const excludes = results.filter(isNotNodeModules).filter(isNotGit).filter(isNotBuildFile).filter(isJS);
+                let excludes = results.filter(filters.isJS);
+
+                if (ignoreNodeModules) {
+                    excludes = excludes.filter(filters.isNotNodeModules);
+                }
+    
+                if (ignoreGit) {
+                    excludes = excludes.filter(filters.isNotGit);
+                }
+    
+                if (ignoreBuildFiles) {
+                    excludes = excludes.filter(filters.isNotBuildFile);
+                }
                 const formatted = excludes.map(filename => {
                     return fs.readFileAsync(filename);    
                 });
