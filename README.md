@@ -11,6 +11,7 @@ This extension walks your entire workspace folder and searching through every fi
 - const
 - class
 - window.*
+- global.*
 - function
 
 **There are a few ways to resolve a global and jump to wherever it was declared:**
