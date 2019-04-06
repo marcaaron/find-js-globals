@@ -1,7 +1,7 @@
 # Change Log
 All notable changes to the "find-globals" extension will be documented in this file.
 
-## [0.3.1] - 2019-04-06
+## [0.3.2] - 2019-04-06
 ### Added
 - Support for `global.*`
 
