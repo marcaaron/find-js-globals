@@ -3,7 +3,7 @@
     "displayName": "Find JS Globals",
     "publisher": "marcaaron",
     "description": "Finds global definitions in JavaScript projects without using modules",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "repository": "https://github.com/marcaaron/find-js-globals.git",
     "engines": {
         "vscode": "^1.29.0"
