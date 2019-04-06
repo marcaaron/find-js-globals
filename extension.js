@@ -59,7 +59,7 @@ exports.activate = context => {
     };
 
     const goodGlobal = /^[a-zA-Z$\_][^():~\-=@#%^&*+]+/;
-    const regex = new RegExp(/(class|window\.|var|let|const|\(?\s?function)\s?([^\s]\.?[^\s]+)\s?(=|\((.+)?\)|\{)/, 'g');
+    const regex = new RegExp(/(class|window\.|global\.|var|let|const|\(?\s?function)\s?([^\s]\.?[^\s]+)\s?(=|\((.+)?\)|\{)/, 'g');
 
     function applyFilters(results) {
         let excludes = results.filter(filters.isJS);
